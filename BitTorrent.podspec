@@ -10,9 +10,22 @@ Pod::Spec.new do |s|
   s.libraries        = 'c++'
   s.platform         = :ios, '8.0'
 
-  s.header_mappings_dir = 'include'
-  s.public_header_files = 'include/**/*.{h,hpp,ipp}'
-  s.source_files = 'include/**/*.{h,hpp,ipp}'
-  s.vendored_libraries = 'libs/*.a'
+  s.default_subspecs = 'Core'
+  s.subspec 'Core' do |c|
+    c.header_mappings_dir = 'include'
+    c.public_header_files = 'include/**/*.{h,hpp,ipp}'
+    c.source_files = 'include/**/*.{h,hpp,ipp}'
+    c.vendored_libraries = 'libs/*.a'
+  end
+
+  s.subspec 'Downloader' do |d|
+    d.public_header_files = 'BitTorrent/Classes/**/*.{h}'
+    d.source_files = 'BitTorrent/Classes/**/*.{h,mm}'
+    d.preserve_paths = 'include'
+    d.vendored_libraries = 'libs/*.a'
+    d.pod_target_xcconfig = {
+      'HEADER_SEARCH_PATHS' => '"${PODS_ROOT}/BitTorrent/include"'
+    }
+  end
 
 end

@@ -1,0 +1,16 @@
+PODS:
+  - BitTorrent/Downloader (1.1.14)
+
+DEPENDENCIES:
+  - BitTorrent/Downloader (from `..`)
+
+EXTERNAL SOURCES:
+  BitTorrent:
+    :path: ".."
+
+SPEC CHECKSUMS:
+  BitTorrent: d619cebed38c156768112d2e06c243a1d64d23d6
+
+PODFILE CHECKSUM: 30bae7f66d05cce26d74cc974d474042a3bfc1b6
+
+COCOAPODS: 1.8.4
