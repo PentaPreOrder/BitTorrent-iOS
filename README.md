@@ -9,6 +9,8 @@ This library provides a built library "libtorrent.a" and dependent header files 
 
 ## Dependencies
 
+> There are 4 architectures included (armv7, arm64, i386 and x86_64) for the dependent libraries. So if you need more architecture(s), you need to replace the dependent libraries with your built files or contact us to get them.
+
 - libtorrent 1.1.14
 - boost 1.66.0
 - libstdc++ / libc++
