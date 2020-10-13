@@ -24,7 +24,7 @@ namespace lt = libtorrent;
 @end
 
 @interface TorrentDownloader ()
-@property (nonatomic,assign) BOOL downloading;
+@property (nonatomic, assign) BOOL downloading;
 @end
 
 @implementation TorrentDownloader
@@ -40,73 +40,77 @@ namespace lt = libtorrent;
     return self;
 }
 
-- (void)startDownload {
-    if (!self.downloading) {
-        dispatch_async(dispatch_get_global_queue(0, 0), ^{
-            
-            error_code ec;
-            std::pair<int,int> p1(6881, 6891);
-            lt::session s;
-            s.listen_on(p1, ec);
-            add_torrent_params p;
-            NSString *tmp = NSTemporaryDirectory();
-            p.save_path = [tmp cStringUsingEncoding:NSUTF8StringEncoding];
-            p.ti = boost::make_shared<torrent_info>(std::string([self.torrentInfo.torrentPath cStringUsingEncoding:NSUTF8StringEncoding]), boost::ref(ec), 0);
-            if (ec) {
-                fprintf(stderr, "%s\n", ec.message().c_str());
-                return;
-            }
-            lt::torrent_handle h = s.add_torrent(p, ec);
-            if (ec) {
-                fprintf(stderr, "%s\n", ec.message().c_str());
-                return;
-            }
-            
-            for (int i = 0; i < self.torrentInfo.files.count; i++) {
-                h.file_priority(i, self.torrentInfo.files[i].selected ? 7 : 0);
-            }
-            
-            while (!h.is_seed()) {
-                libtorrent::torrent_status status = h.status();
-                
-                std::vector<boost::int64_t> progress;
-                h.file_progress(progress);
-                for (int i = 0; i < self.torrentInfo.files.count; i++) {
-                    BTFile *file = self.torrentInfo.files[i];
-                    if (file.selected) file.progress = (double)progress[i] / (double)file.size;
-                }
-                
-                if (self.progressPrint) {
-                    NSArray *statusStr = @[@"queued",@"checking",@"downloading metadata",@"downloading",@"finished",@"seeding",@"allocating",@"checking fastresume"];
-                    NSLog(@" %@ %.2f%% (download rate: %.1fkb/s  upload rate: %.1fkB/s  peers: %d)",statusStr[status.state],status.progress*100,status.download_rate/1000.0,status.upload_rate/1000.0,status.num_peers);
-                    for (BTFile *file in self.torrentInfo.files) {
-                        if (file.selected) NSLog(@"%@ <%.2f%%>",file.name,file.progress*100);
-                    }
-                }
-                
-                if ([self.delegate respondsToSelector:@selector(btDownloader:progressDidUpdate:)]) {
-                    BTDownloadInfo *info = [[BTDownloadInfo alloc] initWithStatus:status];
-                    
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate btDownloader:self progressDidUpdate:info];
-                    });
-                }
-                if (status.progress >= 1) {
-                    if ([self.delegate respondsToSelector:@selector(btDownloaderDidFinishDownload:)]) {
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            [self.delegate btDownloaderDidFinishDownload:self];
-                            self.downloading = NO;
-                        });
-                    }
-                    break;
-                }
-                [NSThread sleepForTimeInterval:1];
-            }
-        });
+- (NSString *)savePath {
+    if (!_savePath) {
+        NSString *cache = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES)[0];
+        _savePath = [cache stringByAppendingPathComponent:@"bt"];
     }
-    self.downloading = YES;
+    return _savePath;
 }
 
+- (void)startDownload {
+    if (self.downloading) return;
+    self.downloading = YES;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        error_code ec;
+        std::pair<int,int> p1(6881, 6891);
+        lt::session s;
+        s.listen_on(p1, ec);
+        add_torrent_params p;
+        p.save_path = [self.savePath cStringUsingEncoding:NSUTF8StringEncoding];
+        p.ti = boost::make_shared<torrent_info>(std::string([self.torrentInfo.torrentPath cStringUsingEncoding:NSUTF8StringEncoding]), boost::ref(ec), 0);
+        if (ec) {
+            fprintf(stderr, "%s\n", ec.message().c_str());
+            return;
+        }
+        lt::torrent_handle h = s.add_torrent(p, ec);
+        if (ec) {
+            fprintf(stderr, "%s\n", ec.message().c_str());
+            return;
+        }
+        
+        for (int i = 0; i < self.torrentInfo.files.count; i++) {
+            h.file_priority(i, self.torrentInfo.files[i].selected ? 7 : 0);
+        }
+        
+        while (!h.is_seed()) {
+            libtorrent::torrent_status status = h.status();
+            
+            std::vector<boost::int64_t> progress;
+            h.file_progress(progress);
+            for (int i = 0; i < self.torrentInfo.files.count; i++) {
+                BTFile *file = self.torrentInfo.files[i];
+                if (file.selected) file.progress = (double)progress[i] / (double)file.size;
+            }
+            
+            if (self.progressPrint) {
+                NSArray *statusStr = @[@"queued",@"checking",@"downloading metadata",@"downloading",@"finished",@"seeding",@"allocating",@"checking fastresume"];
+                NSLog(@" %@ %.2f%% (download rate: %.1fkb/s  upload rate: %.1fkB/s  peers: %d)", statusStr[status.state], status.progress * 100, status.download_rate / 1000.0, status.upload_rate / 1000.0, status.num_peers);
+                for (BTFile *file in self.torrentInfo.files) {
+                    if (file.selected) NSLog(@"%@ <%.2f%%>", file.name, file.progress * 100);
+                }
+            }
+            
+            if ([self.delegate respondsToSelector:@selector(btDownloader:progressDidUpdate:)]) {
+                BTDownloadInfo *info = [[BTDownloadInfo alloc] initWithStatus:status];
+                
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.delegate btDownloader:self progressDidUpdate:info];
+                });
+            }
+            if (status.progress >= 1) {
+                if ([self.delegate respondsToSelector:@selector(btDownloaderDidFinishDownload:)]) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self.delegate btDownloaderDidFinishDownload:self];
+                        self.downloading = NO;
+                    });
+                }
+                break;
+            }
+            [NSThread sleepForTimeInterval:1];
+        }
+    });
+}
 
 @end
                          
@@ -134,22 +138,22 @@ namespace lt = libtorrent;
 
 @implementation TorrentMaker
 + (void)downloadTorrentFromMagnet:(NSString *)magnet complete:(void (^)(NSString *))complete {
-    dispatch_async(dispatch_get_global_queue(0, 0), ^{
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         error_code ec;
         std::pair<int,int> p1(6881,6891);
         lt::session s;
         s.add_extension(&libtorrent::create_ut_metadata_plugin);
         s.add_extension(&libtorrent::create_metadata_plugin);
         s.add_extension(&libtorrent::create_ut_pex_plugin);
-        const std::pair<std::string, int> utNode("router.utorrent.com",6881);
+        const std::pair<std::string, int> utNode("router.utorrent.com", 6881);
         s.add_dht_router(utNode);
-        const std::pair<std::string, int> btNode("router.bittorrent.com",6881);
+        const std::pair<std::string, int> btNode("router.bittorrent.com", 6881);
         s.add_dht_router(btNode);
-        const std::pair<std::string, int> trNode("dht.transmissionbt.com",6881);
+        const std::pair<std::string, int> trNode("dht.transmissionbt.com", 6881);
         s.add_dht_router(trNode);
-        const std::pair<std::string, int> aeNode("dht.aelitis.com",6881);
+        const std::pair<std::string, int> aeNode("dht.aelitis.com", 6881);
         s.add_dht_router(aeNode);
-        const std::pair<std::string, int> commetNode("router.bitcomet.com",6881);
+        const std::pair<std::string, int> commetNode("router.bitcomet.com", 6881);
         s.add_dht_router(commetNode);
         s.start_dht();
         s.start_lsd();
@@ -164,9 +168,8 @@ namespace lt = libtorrent;
             return;
         }
         add_torrent_params p;
-        
-        NSString *tmp = NSTemporaryDirectory();
-        p.save_path = [tmp cStringUsingEncoding:NSUTF8StringEncoding];
+        NSString *savePath = [[TorrentDownloader alloc] init].savePath;
+        p.save_path = [savePath cStringUsingEncoding:NSUTF8StringEncoding];
         std::string sUrl([magnet cStringUsingEncoding:NSUTF8StringEncoding]);
         p.url = sUrl;
         lt::torrent_handle h = s.add_torrent(p, ec);
@@ -179,7 +182,7 @@ namespace lt = libtorrent;
         }
         while (!h.has_metadata()) {
             libtorrent::torrent_status status = h.status();
-            NSLog(@"torrent downloading (rate: %.1fkb/s peers: %d)",status.download_rate/1000.0,status.num_peers);
+            NSLog(@"torrent downloading (rate: %.1fkb/s peers: %d)", status.download_rate / 1000.0, status.num_peers);
             [NSThread sleepForTimeInterval:1];
         }
         s.pause();
@@ -191,7 +194,7 @@ namespace lt = libtorrent;
         bencode(std::back_inserter(buffer), e);
         std::string str(buffer.begin(), buffer.end());
         
-        NSString *path = [NSString stringWithFormat:@"%@%s.torrent",tmp,tf.name().c_str()];
+        NSString *path = [NSString stringWithFormat:@"%@/%s.torrent", savePath, tf.name().c_str()];
         std::ofstream fout([path cStringUsingEncoding:NSUTF8StringEncoding],std::ios::trunc);
         int flag = 0;
         if (fout.is_open()) {

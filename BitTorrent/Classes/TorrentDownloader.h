@@ -5,12 +5,13 @@
 
 @interface TorrentDownloader : NSObject
 
-@property (nonatomic,weak) id<TorrentDownloaderDelegate> delegate;
+@property (nonatomic, weak) id<TorrentDownloaderDelegate> delegate;
 
-@property (nonatomic,strong,readonly) TorrentInfo *torrentInfo;
+@property (nonatomic, strong, readonly) TorrentInfo *torrentInfo;
+@property (nonatomic, copy) NSString *savePath;
 
-@property (nonatomic,assign) BOOL progressPrint;
-@property (nonatomic,assign,readonly) BOOL downloading;
+@property (nonatomic, assign) BOOL progressPrint;
+@property (nonatomic, assign, readonly) BOOL downloading;
 
 - (instancetype)initWithTorrent:(NSString *)url;
 - (void)startDownload;
@@ -37,15 +38,15 @@ typedef NS_ENUM(NSUInteger, BTDownloadInfoType) {
 };
 
 @interface BTDownloadInfo : NSObject
-@property (nonatomic,assign) BTDownloadInfoType state;
-@property (nonatomic,assign) float progress;
-@property (nonatomic,assign) int downloadSpeed;
-@property (nonatomic,assign) int uploadSpeed;
-@property (nonatomic,assign) int peer;
+@property (nonatomic, assign) BTDownloadInfoType state;
+@property (nonatomic, assign) float progress;
+@property (nonatomic, assign) int downloadSpeed;
+@property (nonatomic, assign) int uploadSpeed;
+@property (nonatomic, assign) int peer;
 @end
 
 @interface BTFile (BTFileSelection)
-@property (nonatomic,assign) BOOL selected;
+@property (nonatomic, assign) BOOL selected;
 @end
 
 

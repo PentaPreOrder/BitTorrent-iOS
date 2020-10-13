@@ -6,6 +6,7 @@
 #import "libtorrent/announce_entry.hpp"
 #import "libtorrent/bdecode.hpp"
 #import "libtorrent/magnet_uri.hpp"
+
 using namespace libtorrent;
 
 @interface Tracker ()
@@ -71,14 +72,20 @@ using namespace libtorrent;
     printf("file count: %lu\n", (unsigned long)self.files.count);
     printf("<----- file list: -----> \n\n");
     for (BTFile *file in self.files) {
-        printf(" %8" PRIx64 " %11" PRId64 " %c%c%c%c [ %5d, %5d ] %7u %s %s %s%s\n"
-               ,file.offset,file.size,
-               (file.isPadFile?'p':'-'), (file.executable?'x':'-'), (file.hidden?'h':'-'), (![file.symlink isEqualToString:@""]?'l':'-')
-               , file.firstPiece, file.lastPiece
-               , file.mtime
-               , [file.fileHash cStringUsingEncoding:NSUTF8StringEncoding]
-               , [file.name cStringUsingEncoding:NSUTF8StringEncoding]
-               , ![file.symlink isEqualToString:@""] ? "-> " : "", [file.symlink cStringUsingEncoding:NSUTF8StringEncoding]);
+        printf(" %8" PRIx64 " %11" PRId64 " %c%c%c%c [ %5d, %5d ] %7u %s %s %s%s\n",
+               file.offset,
+               file.size,
+               (file.isPadFile ? 'p' : '-'),
+               (file.executable ? 'x' : '-'),
+               (file.hidden ? 'h' : '-'),
+               (![file.symlink isEqualToString:@""] ? 'l' : '-'),
+               file.firstPiece,
+               file.lastPiece,
+               file.mtime,
+               [file.fileHash cStringUsingEncoding:NSUTF8StringEncoding],
+               [file.name cStringUsingEncoding:NSUTF8StringEncoding],
+               ![file.symlink isEqualToString:@""] ? "-> " : "",
+               [file.symlink cStringUsingEncoding:NSUTF8StringEncoding]);
     }
 }
 
@@ -96,10 +103,8 @@ using namespace libtorrent;
 }
 
 - (int)decode:(std::vector<char> *)buf node:(bdecode_node *)e {
-
     error_code ec;
     int pos = -1;
-    
     
     int item_limit = 1000000;
     int depth_limit = 1000;
